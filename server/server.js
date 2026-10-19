@@ -9,6 +9,7 @@ const path = require('path');
 const fs = require('fs');
 const { Server } = require('socket.io');
 const { RoomManager } = require('./roomManager');
+const { BotManager } = require('./bots');
 const { verify, authMiddleware, adminMiddleware } = require('./auth');
 const { stmts, adjustSweepBalance } = require('./db');
 const license = require('./license');
@@ -120,7 +121,15 @@ function broadcastState(tableId) {
   const room = rooms.getTable(tableId);
   if (!room) return;
   rooms.eachSocket(room, (token, socketId) => {
-    io.to(socketId).emit('room', room.engine.getState(token));
+    const st = room.engine.getState(token);
+    // attach bot avatars (humans get none) — harmless extra field for clients
+    for (const s of st.seats) {
+      if (!s.empty) {
+        const av = bots.avatarForName(tableId, s.name);
+        if (av) s.avatar = av;
+      }
+    }
+    io.to(socketId).emit('room', st);
   });
 }
 
@@ -132,6 +141,7 @@ function syncTable(tableId) {
     if (ev.type === 'turn' && ev.token) {
       const sid = room.sockets.get(ev.token);
       if (sid) io.to(sid).emit('yourTurn', { legal: ev.legal });
+      bots.onTurn(tableId, ev.token); // server-side bots think, then act
     }
     io.to(tableId).emit(ev.type, ev);
   }
@@ -146,6 +156,11 @@ function syncTable(tableId) {
     }, 3000);
   }
 }
+
+// ---- Bot backfill: tables always look full; bots play via the engine ----
+const bots = new BotManager(rooms, { sync: (id) => syncTable(id) });
+setInterval(() => bots.maintain(), 15000);
+bots.maintain(); // initial fill at startup
 
 io.on('connection', (socket) => {
   let tableId = null;
@@ -200,6 +215,7 @@ io.on('connection', (socket) => {
     if (newFlags.length) socket.emit('notice', { code: 'collusion-flag', msg: 'Fair-play review triggered on this table.' });
     socket.emit('joined', { token, table: tableId, accountId });
     socket.emit('room', room.engine.getState(token));
+    bots.onHumanJoin(tableId); // a bot quietly yields its seat if the table is full
     broadcastState(tableId);
     syncTable(tableId);
   });
@@ -262,4 +278,4 @@ server.listen(PORT, () => {
   console.log('Tables:', rooms.listTables().map(t => t.id).join(', '));
 });
 
-module.exports = { app, io, rooms, config, PROTOCOL_V };
+module.exports = { app, io, rooms, bots, config, PROTOCOL_V };
