@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0f0f1a; color: #eee; padding: 20px; }
+  h1 { color: #d4af37; margin-bottom: 20px; }
+  h2 { color: #d4af37; margin: 24px 0 12px; font-size: 1.1em; }
+  .card { background: #1a1a2e; border: 1px solid #333; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+  th, td { text-align: left; padding: 8px; border-bottom: 1px solid #2a2a3e; }
+  th { color: #d4af37; }
+  button { background: #d4af37; color: #111; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+  button.danger { background: #c0392b; color: #fff; }
+  button.small { padding: 4px 8px; font-size: 0.85em; }
+  input, select { background: #0f0f1a; color: #eee; border: 1px solid #444; padding: 8px; border-radius: 4px; margin: 4px 0; }
+  #login { max-width: 320px; margin: 60px auto; }
+  #login input { width: 100%; }
+  #login button { width: 100%; margin-top: 8px; padding: 10px; }
+  .hidden { display: none; }
+  .stats { display: flex; gap: 16px; flex-wrap: wrap; }
+  .stat { background: #1a1a2e; border: 1px solid #333; border-radius: 8px; padding: 16px 24px; }
+  .stat .num { font-size: 2em; color: #d4af37; font-weight: bold; }
+  .stat .lbl { color: #888; font-size: 0.85em; }
+  .banned { color: #c0392b; }
+</style>
+</head>
+<body>
+
+<div id="login" class="card">
+  <h1>Admin Login</h1>
+  <input id="username" placeholder="Username" autocomplete="username">
+  <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+  <input id="totp" placeholder="2FA code (if enabled)" maxLength="6" autocomplete="one-time-code" inputmode="numeric">
+  <button onclick="doLogin()">Log In</button>
+  <p id="loginErr" style="color:#c0392b;margin-top:8px"></p>
+</div>
+
+<div id="panel" class="hidden">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+    <h1 id="casinoName" style="margin:0">Admin Panel</h1>
+    <div>
+      <span id="versionTag" style="color:#666;font-size:0.8em;margin-right:12px"></span>
+      <button class="small" onclick="logout()">Log Out</button>
+    </div>
+  </div>
+
+  <h2>Overview</h2>
+  <div class="stats" id="stats"></div>
+
+  <h2>Security</h2>
+  <div class="card">
+    <h3 style="color:#d4af37;margin-bottom:8px">Two-factor authentication</h3>
+    <p id="totpStatus" style="margin-bottom:8px;color:#888">…</p>
+    <div id="totpSetup" class="hidden">
+      <p style="font-size:0.85em;color:#888">Type this secret into your authenticator app (Google Authenticator, Authy, 1Password):</p>
+      <p style="font-family:monospace;font-size:1.2em;letter-spacing:2px;margin:8px 0" id="totpSecret"></p>
+      <input id="totpCode" placeholder="6-digit code" maxLength="6" style="width:140px">
+      <button onclick="confirmTotp()">Confirm &amp; Enable</button>
+      <p id="totpMsg" style="margin-top:8px"></p>
+    </div>
+    <button id="totpSetupBtn" onclick="setupTotp()">Set up 2FA</button>
+    <button id="totpDisableBtn" class="danger hidden" onclick="disableTotp()">Disable 2FA</button>
+  </div>
+
+  <h2>Fair Play</h2>
+  <div class="card">
+    <h3 style="color:#d4af37;margin-bottom:8px">Collusion flags <span style="color:#666;font-weight:normal;font-size:0.8em">(shared-IP seating auto-detected)</span></h3>
+    <table id="collusionTable"><tr><th>Time</th><th>Table</th><th>Type</th><th>Detail</th><th>Action</th></tr></table>
+  </div>
+
+  <h2>Live Tables</h2>
+  <div class="card"><table id="tablesTable">
+    <tr><th>Table</th><th>Players</th><th>State</th><th>Hand #</th></tr>
+  </table></div>
+
+  <h2>Players</h2>
+  <div class="card"><table id="playersTable">
+    <tr><th>Username</th><th>Display</th><th>Balance</th><th>Status</th><th>Actions</th></tr>
+  </table></div>
+
+  <h2>Sweepstakes</h2>
+  <div class="card">
+    <p>Status: <strong id="sweepStatus">…</strong></p>
+    <p style="color:#888;font-size:0.85em;margin:6px 0">Sweepstakes mode is encrypted and locked. Paste a license key issued by the platform vendor to unlock it (requires proof of legal compliance).</p>
+    <input id="licenseKey" placeholder="Paste license key (NPK1.…)" style="width:100%">
+    <button onclick="activateLicense()">Activate License</button>
+    <p id="licenseMsg" style="margin-top:8px"></p>
+  </div>
+  <div class="card" id="redemptionsCard">
+    <h3 style="color:#d4af37;margin-bottom:8px">Redemption Requests</h3>
+    <table id="redemptionsTable"><tr><th>ID</th><th>Player</th><th>SC</th><th>USD</th><th>State</th><th>Status</th><th>Actions</th></tr></table>
+  </div>
+  <div class="card">
+    <h3 style="color:#d4af37;margin-bottom:8px">License Audit Log</h3>
+    <table id="auditTable"><tr><th>Time</th><th>Action</th><th>Detail</th></tr></table>
+  </div>
+</div>
+
+<script>
+let token = localStorage.getItem('adminToken') || '';
+const api = (p, opts={}) => fetch(p, {
+  ...opts,
+  headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, ...(opts.headers||{}) },
+}).then(r => r.json());
+
+async function doLogin() {
+  const r = await api('/api/auth/login', { method: 'POST',
+    body: JSON.stringify({
+      username: document.getElementById('username').value,
+      password: document.getElementById('password').value,
+      totp: document.getElementById('totp').value.trim() || undefined,
+    }) });
+  if (!r.ok || !r.player.is_admin) {
+    document.getElementById('loginErr').textContent =
+      r.error === 'totp-required' ? 'This account needs a 2FA code.' :
+      r.error === 'totp-invalid' ? 'Wrong 2FA code.' :
+      'Login failed or not admin.';
+    return;
+  }
+  token = r.token; try { localStorage.setItem('adminToken', token); } catch {}
+  showPanel();
+}
+function logout() { token=''; localStorage.removeItem('adminToken'); location.reload(); }
+
+async function showPanel() {
+  document.getElementById('login').classList.add('hidden');
+  document.getElementById('panel').classList.remove('hidden');
+  const cfg = await api('/api/config');
+  if (cfg.ok) {
+    document.getElementById('casinoName').textContent = cfg.casino.name + ' — Admin';
+    document.title = cfg.casino.name + ' — Admin';
+  }
+  const health = await api('/api/health').catch(() => null);
+  if (health && health.ok) document.getElementById('versionTag').textContent = 'platform v' + health.v;
+  loadStats(); loadTables(); loadPlayers(); loadSweep(); loadTotpStatus(); loadCollusion();
+  setInterval(() => { loadStats(); loadTables(); }, 10000);
+}
+
+// ---- 2FA ----
+async function loadTotpStatus() {
+  const r = await api('/api/me');
+  const on = !!(r.ok && r.player.totp_enabled);
+  document.getElementById('totpStatus').innerHTML = on
+    ? '<span style="color:#2ecc71">2FA is ENABLED on your admin account.</span>'
+    : '<span style="color:#c0392b">2FA is OFF.</span> Enable it to protect this admin account.';
+  document.getElementById('totpSetupBtn').classList.toggle('hidden', on);
+  document.getElementById('totpDisableBtn').classList.toggle('hidden', !on);
+}
+async function setupTotp() {
+  const r = await api('/api/2fa/setup', { method: 'POST', body: JSON.stringify({}) });
+  if (!r.ok) { alert('Setup failed'); return; }
+  document.getElementById('totpSecret').textContent = r.secret.match(/.{1,4}/g).join(' ');
+  document.getElementById('totpSetup').classList.remove('hidden');
+  document.getElementById('totpMsg').textContent = '';
+}
+async function confirmTotp() {
+  const code = document.getElementById('totpCode').value.trim();
+  const r = await api('/api/2fa/confirm', { method: 'POST', body: JSON.stringify({ token: code }) });
+  const msg = document.getElementById('totpMsg');
+  if (r.ok) {
+    msg.style.color = '#2ecc71'; msg.textContent = '2FA enabled.';
+    document.getElementById('totpSetup').classList.add('hidden');
+  } else { msg.style.color = '#c0392b'; msg.textContent = 'Invalid code — try again.'; }
+  loadTotpStatus();
+}
+async function disableTotp() {
+  const pw = prompt('Enter your password to disable 2FA:');
+  if (pw === null) return;
+  const r = await api('/api/2fa/disable', { method: 'POST', body: JSON.stringify({ password: pw }) });
+  if (!r.ok) alert('Failed: ' + r.error); else loadTotpStatus();
+}
+
+// ---- collusion ----
+async function loadCollusion() {
+  const r = await api('/api/admin/collusion/flags?reviewed=0&limit=50');
+  const tbl = document.getElementById('collusionTable');
+  if (!r.ok) { tbl.innerHTML = '<tr><td colspan="5">Unavailable</td></tr>'; return; }
+  tbl.innerHTML = '<tr><th>Time</th><th>Table</th><th>Type</th><th>Detail</th><th>Action</th></tr>' +
+    (r.flags.map(f => `<tr><td>${f.created_at}</td><td>${f.table_id}</td><td>${f.kind}</td>
+      <td style="max-width:320px">${f.detail || ''}</td>
+      <td><button class="small" onclick="reviewFlag(${f.id})">Mark reviewed</button></td></tr>`).join('')
+    || '<tr><td colspan="5" style="color:#888">No unreviewed flags. Tables are clean.</td></tr>');
+}
+async function reviewFlag(id) {
+  await api(`/api/admin/collusion/flags/${id}/review`, { method: 'POST', body: JSON.stringify({}) });
+  loadCollusion();
+}
+
+async function loadSweep() {
+  const s = await api('/api/admin/license/status');
+  if (s.ok) {
+    document.getElementById('sweepStatus').innerHTML = s.sweepstakesUnlocked
+      ? '<span style="color:#2ecc71">UNLOCKED</span> — ' + (s.sweepstakes ? s.sweepstakes.casino : '')
+      : '<span style="color:#c0392b">LOCKED</span> (gold coins only)';
+  }
+  const a = await api('/api/admin/license/audit');
+  if (a.ok) {
+    document.getElementById('auditTable').innerHTML =
+      '<tr><th>Time</th><th>Action</th><th>Detail</th></tr>' +
+      a.audit.map(r => `<tr><td>${r.created_at}</td><td>${r.action}</td><td>${(r.detail||'').slice(0,120)}</td></tr>`).join('');
+  }
+  loadRedemptions();
+}
+
+async function activateLicense() {
+  const key = document.getElementById('licenseKey').value.trim();
+  if (!key) return;
+  const r = await api('/api/admin/license/activate', { method: 'POST', body: JSON.stringify({ key }) });
+  const msg = document.getElementById('licenseMsg');
+  if (r.ok) {
+    msg.style.color = '#2ecc71';
+    msg.textContent = `Activated ${r.type} license for ${r.casino}.`;
+    document.getElementById('licenseKey').value = '';
+  } else {
+    msg.style.color = '#c0392b';
+    msg.textContent = 'Activation failed: ' + (r.error || 'unknown');
+  }
+  loadSweep();
+}
+
+async function loadRedemptions() {
+  const r = await api('/api/admin/sweep/redemptions?status=pending&limit=50');
+  const tbl = document.getElementById('redemptionsTable');
+  if (!r.ok) {
+    tbl.innerHTML = '<tr><td colspan="7" style="color:#888">Sweepstakes locked — no redemption queue.</td></tr>';
+    return;
+  }
+  tbl.innerHTML = '<tr><th>ID</th><th>Player</th><th>SC</th><th>USD</th><th>State</th><th>Status</th><th>Actions</th></tr>' +
+    (r.redemptions.map(x => `<tr><td>${x.id}</td><td>${x.username}</td><td>${x.sweep_amount}</td>
+      <td>$${x.usd_amount}</td><td>${x.state_code||''}</td><td>${x.status}</td>
+      <td>${x.status==='pending'
+        ? `<button class="small" onclick="decideRedemption(${x.id},'approve')">Approve</button>
+           <button class="small danger" onclick="decideRedemption(${x.id},'deny')">Deny</button>`
+        : ''}</td></tr>`).join('') || '<tr><td colspan="7" style="color:#888">No pending redemptions.</td></tr>');
+}
+
+async function decideRedemption(id, action) {
+  if (!confirm(`${action} redemption #${id}?`)) return;
+  const r = await api(`/api/admin/sweep/redemptions/${id}/${action}`, { method: 'POST', body: JSON.stringify({}) });
+  if (!r.ok) alert('Failed: ' + r.error);
+  loadRedemptions();
+}
+
+async function loadStats() {
+  const r = await api('/api/admin/stats');
+  if (!r.ok) return;
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="num">${r.totalPlayers}</div><div class="lbl">Players</div></div>
+    <div class="stat"><div class="num">${r.tables}</div><div class="lbl">Tables</div></div>
+    <div class="stat"><div class="num">${r.seated}</div><div class="lbl">Seated</div></div>`;
+}
+
+async function loadTables() {
+  const r = await api('/api/admin/tables');
+  if (!r.ok) return;
+  document.getElementById('tablesTable').innerHTML =
+    '<tr><th>Table</th><th>Players</th><th>State</th><th>Hand #</th></tr>' +
+    r.tables.map(t => `<tr><td>${t.id}</td><td>${t.players}</td><td>${t.state}</td><td>${t.hand}</td></tr>`).join('');
+}
+
+async function loadPlayers() {
+  const r = await api('/api/admin/players?limit=100');
+  if (!r.ok) return;
+  document.getElementById('playersTable').innerHTML =
+    '<tr><th>Username</th><th>Display</th><th>Balance</th><th>Status</th><th>Actions</th></tr>' +
+    r.players.map(p => `<tr>
+      <td>${p.username}</td><td>${p.display_name||''}</td><td>${p.balance.toLocaleString()}</td>
+      <td class="${p.banned?'banned':''}">${p.banned?'BANNED':''}</td>
+      <td>
+        <button class="small" onclick="adjustCoins(${p.id},'${p.username}')">± Coins</button>
+        <button class="small ${p.banned?'':'danger'}" onclick="toggleBan(${p.id},${p.banned?0:1})">${p.banned?'Unban':'Ban'}</button>
+      </td></tr>`).join('');
+}
+
+async function toggleBan(id, banned) {
+  if (!confirm((banned?'Ban ':'Unban ') + 'this player?')) return;
+  await api(`/api/admin/players/${id}/ban`, { method: 'POST', body: JSON.stringify({ banned: !!banned }) });
+  loadPlayers();
+}
+
+async function adjustCoins(id, username) {
+  const amount = prompt(`Adjust coins for ${username} (use negative to subtract):`);
+  if (amount === null) return;
+  const note = prompt('Note (optional):') || '';
+  const r = await api(`/api/admin/players/${id}/adjust`, { method: 'POST', body: JSON.stringify({ amount: parseInt(amount), note }) });
+  if (r.ok) { alert('New balance: ' + r.balance.toLocaleString()); loadPlayers(); }
+  else alert('Failed: ' + r.error);
+}
+
+if (token) showPanel();
+</script>
+<footer style="margin-top:32px;color:#555;font-size:0.8em;text-align:center">
+  Secure platform · CSPRNG shuffling · 2FA available · <a href="/security" style="color:#d4af37">Security &amp; Fair Play</a>
+</footer>
+</body>
+</html>

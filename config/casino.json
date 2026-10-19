@@ -1,0 +1,120 @@
+{
+  "admin": {
+    "passwordHash": "",
+    "username": "admin"
+  },
+  "casino": {
+    "logo": "/assets/logo.png",
+    "name": "Nikkiflixs Poker Club",
+    "supportEmail": "support@example.com",
+    "tagline": "Play poker with friends"
+  },
+  "coins": {
+    "currencyName": "Gold Coins",
+    "freeOnSignup": 1000,
+    "packages": [
+      {
+        "coins": 1000,
+        "id": "starter",
+        "priceUSD": 4.99
+      },
+      {
+        "coins": 5000,
+        "id": "regular",
+        "priceUSD": 19.99
+      },
+      {
+        "coins": 25000,
+        "id": "highroller",
+        "priceUSD": 79.99
+      }
+    ]
+  },
+  "payments": {
+    "cryptoEnabled": false,
+    "provider": "stripe",
+    "stripePublishableKey": "",
+    "stripeSecretKey": ""
+  },
+  "tables": [
+    {
+      "bigBlind": 5,
+      "felt": "green",
+      "id": "emerald",
+      "maxPlayers": 8,
+      "name": "Emerald Room",
+      "smallBlind": 2,
+      "startingStack": 1000
+    },
+    {
+      "bigBlind": 2,
+      "felt": "red",
+      "id": "red",
+      "maxPlayers": 8,
+      "name": "Red Room",
+      "smallBlind": 1,
+      "startingStack": 1000
+    },
+    {
+      "bigBlind": 2,
+      "felt": "blue",
+      "id": "blue",
+      "maxPlayers": 5,
+      "name": "Blue Room",
+      "smallBlind": 1,
+      "startingStack": 1000
+    },
+    {
+      "bigBlind": 2,
+      "felt": "purple",
+      "id": "purple",
+      "maxPlayers": 5,
+      "name": "Purple Room",
+      "smallBlind": 1,
+      "startingStack": 1000
+    },
+    {
+      "felt": "black",
+      "game": "blackjack",
+      "id": "blackjack",
+      "maxPlayers": 5,
+      "name": "Blackjack",
+      "startingStack": 1000
+    }
+  ],
+  "theme": {
+    "accent": "#d4af37",
+    "feltDefault": "blue",
+    "felts": [
+      "blue",
+      "purple",
+      "green",
+      "red",
+      "black"
+    ],
+    "primary": "#1a1a2e"
+  },
+  "sweepstakes": {
+    "mode": "locked",
+    "currencyName": "Sweepstakes Coins",
+    "shortName": "SC",
+    "purchaseBonus": {
+      "starter": 5,
+      "regular": 30,
+      "highroller": 200
+    },
+    "redeemRate": 1,
+    "minRedeem": 50,
+    "minAge": 18,
+    "excludedStates": [
+      "WA",
+      "NV",
+      "ID",
+      "KY",
+      "MT",
+      "LA",
+      "MI"
+    ],
+    "complianceNotice": "NO PURCHASE NECESSARY to receive Sweepstakes Coins. Void where prohibited. Must be 18+ (19+ in AL/NE, 21+ in AZ). Play responsibly. 1-800-GAMBLER."
+  }
+}

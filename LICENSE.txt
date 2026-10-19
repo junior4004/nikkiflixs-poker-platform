@@ -1,0 +1,45 @@
+NIKKIFLIXS POKER PLATFORM — SOFTWARE LICENSE
+Version 1.0 — Gold Coins Edition
+
+1. GRANT. The vendor ("Licensor") grants the buyer ("Licensee") a
+   non-exclusive, non-transferable license to install and operate ONE
+   (1) production instance of the Nikkiflixs Poker Platform software
+   ("Software") for the casino named in the license key.
+
+2. GOLD COINS ONLY. The Software as delivered operates with Gold Coins,
+   a virtual currency with NO cash or monetary value. Gold Coins cannot
+   be redeemed, exchanged, or converted into money, prizes, or anything
+   of value. Licensee shall not represent otherwise to players.
+
+3. NO REDISTRIBUTION. Licensee may not sell, sublicense, rent, lease,
+   lend, copy, or redistribute the Software, in whole or in part, to any
+   third party. Licensee may not publish the source code, post it
+   publicly, or use it to build a competing commercial product.
+
+4. NO REVERSE ENGINEERING OF LICENSE CONTROLS. Licensee shall not
+   attempt to bypass, disable, decrypt, or reverse-engineer the
+   Software's license verification, sweepstakes lock, or any
+   technological protection measure. Doing so terminates this license
+   immediately and may expose Licensee to legal action.
+
+5. BUYER RESPONSIBLE FOR COMPLIANCE. Licensor sells SOFTWARE ONLY.
+   Licensee is solely responsible for complying with all gambling,
+   sweepstakes, contest, consumer-protection, tax, and other laws in
+   every jurisdiction where Licensee operates. Licensor makes no claim
+   that operating the Software is legal in any particular jurisdiction.
+
+6. SWEEPSTAKES MODE. Sweepstakes functionality, if present in the
+   Software, ships ENCRYPTED AND DISABLED. It can only be enabled by a
+   separate sweepstakes license key issued by the Licensor AFTER
+   Licensee provides satisfactory proof of legal compliance. See
+   SWEEPSTAKES-ADDENDUM.txt. Any attempt to enable sweepstakes mode
+   without authorization is a breach of this license.
+
+7. NO WARRANTY. The Software is provided "AS IS" without warranty of
+   any kind. Licensor is not liable for any damages arising from use.
+
+8. TERMINATION. Licensor may terminate this license if Licensee
+   breaches any term. Upon termination, Licensee must delete all
+   copies of the Software.
+
+By installing the Software, Licensee agrees to these terms.

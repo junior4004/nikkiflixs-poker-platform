@@ -1,0 +1,49 @@
+NIKKIFLIXS POKER PLATFORM — SWEEPSTAKES ADDENDUM
+Version 1.0 — must be read with LICENSE.txt
+
+This addendum applies ONLY if the Licensor has issued a sweepstakes
+license key to the Licensee. Without that key, sweepstakes mode is
+encrypted, disabled, and unavailable.
+
+1. ACTIVATION PROCESS.
+   a. Licensee requests sweepstakes activation in writing.
+   b. Licensee provides proof of legal compliance for every
+      jurisdiction of operation. Acceptable proof includes, at minimum:
+        - a written legal opinion from a licensed gambling attorney, OR
+        - copies of applicable gaming/sweepstakes licenses or
+          registrations, OR
+        - other documentation the Licensor deems satisfactory.
+   c. Licensor reviews the proof and, if satisfied, issues a
+      sweepstakes license key. Issuance is at Licensor's sole
+      discretion; Licensor may decline for any reason.
+   d. Licensee activates the key in the admin panel. Activation is
+      recorded in the license audit log.
+
+2. LICENSEE ASSUMES ALL LEGAL RISK. Licensor provides the sweepstakes
+   software as a TECHNICAL FEATURE ONLY. Licensee is solely
+   responsible for:
+     - operating sweepstakes legally in all jurisdictions;
+     - publishing and honoring official rules, odds disclosures,
+       "no purchase necessary" free-entry methods, and winner lists;
+     - age verification, excluded-jurisdiction blocking, and
+       responsible-gaming measures;
+     - tax reporting and prize fulfillment.
+   Licensor is NOT a gambling operator and assumes NO liability for
+   Licensee's operation.
+
+3. COMPLIANCE DEFAULTS. The Software ships with conservative defaults
+   (18+ age gate, excluded-state list, compliance notice). These are a
+   starting point, NOT legal advice. Licensee must have them reviewed
+   by counsel.
+
+4. NO CIRCUMVENTION. If Licensee's sweepstakes license expires or is
+   revoked, sweepstakes mode disables. Attempting to bypass, decrypt,
+   or re-enable it without authorization terminates the entire
+   platform license immediately.
+
+5. INDEMNIFICATION. Licensee agrees to indemnify and hold harmless
+   the Licensor from any claims, fines, or actions arising from
+   Licensee's sweepstakes operation.
+
+If you cannot meet these requirements, do not request sweepstakes
+activation. The gold-coins-only platform remains fully functional.

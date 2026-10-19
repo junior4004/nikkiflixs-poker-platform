@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Security &amp; Fair Play — {{CASINO_NAME}}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #0f0f1a; color: #e8e8e8; line-height: 1.6; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 40px 20px 80px; }
+  h1 { color: {{ACCENT}}; font-size: 2em; margin-bottom: 8px; }
+  .sub { color: #888; margin-bottom: 32px; }
+  h2 { color: {{ACCENT}}; font-size: 1.25em; margin: 28px 0 10px; }
+  p, li { color: #ccc; }
+  ul { margin: 8px 0 8px 22px; }
+  li { margin-bottom: 6px; }
+  .card { background: #1a1a2e; border: 1px solid #2e2e45; border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; }
+  .badge { display: inline-block; background: #12351f; color: #2ecc71; border: 1px solid #2ecc71; border-radius: 20px; padding: 2px 12px; font-size: 0.8em; font-weight: bold; margin-bottom: 12px; }
+  footer { margin-top: 40px; color: #666; font-size: 0.85em; text-align: center; }
+  a { color: {{ACCENT}}; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Security &amp; Fair Play</h1>
+  <p class="sub">How {{CASINO_NAME}} protects your game, your account, and your coins.</p>
+
+  <div class="card">
+    <span class="badge">RNG</span>
+    <h2>Certified-grade random shuffling</h2>
+    <p>Every deck is shuffled server-side using a <strong>cryptographically secure random
+    number generator</strong> (the operating system's CSPRNG — the same class of randomness
+    banks use for encryption keys), not the predictable <em>Math.random()</em> found in
+    browser games. Shuffles happen on our servers, never on your device, so no player
+    can see or influence the deck.</p>
+    <p style="margin-top:8px">Operators pursuing real-money licensure can take our RNG
+    through independent certification (iTech Labs, GLI, or BMM) — the code is written
+    with a single, auditable randomness choke point to make that straightforward.</p>
+  </div>
+
+  <div class="card">
+    <span class="badge">SERVER-AUTHORITATIVE</span>
+    <h2>The server is the referee</h2>
+    <p>All game logic — dealing, betting rounds, pot calculation, side pots — runs on
+    our servers. Your app only <em>displays</em> the game state and sends your actions.
+    There is no way to peek at other players' cards, alter chip counts, or replay
+    hands from the client side.</p>
+  </div>
+
+  <div class="card">
+    <span class="badge">ANTI-COLLUSION</span>
+    <h2>Fair-play monitoring</h2>
+    <ul>
+      <li>Player connections are tracked per table — shared-IP seating is automatically flagged for review.</li>
+      <li>Showdown patterns are analyzed for suspicious coordination between accounts.</li>
+      <li>Administrators can warn, suspend, or ban accounts, and every action is logged.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <span class="badge">ACCOUNT SECURITY</span>
+    <h2>Your account, locked down</h2>
+    <ul>
+      <li>Passwords are stored as <strong>bcrypt hashes</strong> — never in plain text, never reversible.</li>
+      <li>Optional <strong>two-factor authentication</strong> (authenticator app) for players and administrators.</li>
+      <li>All traffic is encrypted with <strong>TLS/HTTPS</strong> with HSTS enforcement.</li>
+      <li>Sessions are signed tokens that expire; banned accounts are rejected at every layer.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <span class="badge">FUNDS</span>
+    <h2>Coin integrity</h2>
+    <p>Coin balances live <strong>server-side</strong>, not on your device. Every coin
+    movement — purchases, bonuses, adjustments, redemptions — is written to an
+    append-only transaction ledger with timestamps. Gold Coins have no cash value
+    and cannot be redeemed for money or prizes.</p>
+  </div>
+
+  <div class="card">
+    <span class="badge">RESPONSIBLE PLAY</span>
+    <h2>Play responsibly</h2>
+    <p>This is a social gaming platform. If gambling stops being fun, help is available
+    24/7 at <strong>1-800-GAMBLER</strong> (US). You must be 18 or older to play
+    (19+ in AL/NE, 21+ in AZ and where required by law).</p>
+  </div>
+
+  <footer>
+    {{CASINO_NAME}} — Security &amp; Fair Play<br>
+    Questions? Contact <a href="mailto:{{SUPPORT_EMAIL}}">{{SUPPORT_EMAIL}}</a>
+  </footer>
+</div>
+</body>
+</html>
