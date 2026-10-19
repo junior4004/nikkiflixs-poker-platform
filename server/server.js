@@ -80,6 +80,41 @@ const io = new Server(server, { cors: { origin: '*' } });
 const rooms = new RoomManager();
 app.locals.rooms = rooms;
 
+// ---- Spectators: watch a table's game without taking a seat ----
+const spectators = new Map(); // tableId -> Set(socketId)
+function addSpectator(tableId, socketId) {
+  if (!spectators.get(tableId)) spectators.set(tableId, new Set());
+  spectators.get(tableId).add(socketId);
+}
+function removeSpectator(socketId) {
+  for (const set of spectators.values()) set.delete(socketId);
+}
+
+// ---- Human turn backstop: the game NEVER stops on a human ----
+// If a human hasn't acted when the timer fires: check when it's free,
+// otherwise fold. Connected players get a generous clock; a disconnected
+// player's hand is resolved quickly so the table keeps moving.
+const humanTimers = new Map(); // token -> timeout id
+function clearHumanTimer(token) {
+  const t = humanTimers.get(token);
+  if (t) { clearTimeout(t); humanTimers.delete(token); }
+}
+function armHumanTimer(tableId, token) {
+  clearHumanTimer(token);
+  const room = rooms.getTable(tableId);
+  if (!room) return;
+  const ms = room.sockets.has(token) ? 40000 : 6000;
+  humanTimers.set(token, setTimeout(() => {
+    humanTimers.delete(token);
+    const r = rooms.getTable(tableId);
+    if (!r || r.engine.actingToken !== token) return; // turn already resolved
+    const legal = r.engine.legalActions(token);
+    if (!legal.length) return;
+    const action = legal.includes('check') ? 'check' : 'fold';
+    if (r.engine.act(token, action).ok) syncTable(tableId);
+  }, ms));
+}
+
 // ---- Sweepstakes (encrypted module, license-gated) ----
 function mountSweepstakes() {
   try {
@@ -117,20 +152,30 @@ for (const t of config.tables) {
   });
 }
 
+function withAvatars(tableId, st) {
+  // attach bot avatars (humans get none) — harmless extra field for clients
+  for (const s of st.seats) {
+    if (!s.empty) {
+      const av = bots.avatarForName(tableId, s.name);
+      if (av) s.avatar = av;
+    }
+  }
+  return st;
+}
+
 function broadcastState(tableId) {
   const room = rooms.getTable(tableId);
   if (!room) return;
   rooms.eachSocket(room, (token, socketId) => {
-    const st = room.engine.getState(token);
-    // attach bot avatars (humans get none) — harmless extra field for clients
-    for (const s of st.seats) {
-      if (!s.empty) {
-        const av = bots.avatarForName(tableId, s.name);
-        if (av) s.avatar = av;
-      }
-    }
+    const st = withAvatars(tableId, room.engine.getState(token));
     io.to(socketId).emit('room', st);
   });
+  // spectators watch the same game without taking a seat
+  const specs = spectators.get(tableId);
+  if (specs) {
+    const st = withAvatars(tableId, room.engine.getState(null));
+    for (const socketId of specs) io.to(socketId).emit('room', st);
+  }
 }
 
 function syncTable(tableId) {
@@ -140,21 +185,30 @@ function syncTable(tableId) {
   for (const ev of events) {
     if (ev.type === 'turn' && ev.token) {
       const sid = room.sockets.get(ev.token);
+      if (bots.isBot(tableId, ev.token)) {
+        bots.onTurn(tableId, ev.token); // server-side bots think, then act
+      } else {
+        armHumanTimer(tableId, ev.token); // humans get a never-stop backstop
+      }
       if (sid) io.to(sid).emit('yourTurn', { legal: ev.legal });
-      bots.onTurn(tableId, ev.token); // server-side bots think, then act
     }
     io.to(tableId).emit(ev.type, ev);
   }
-  broadcastState(tableId);
   const eng = room.engine;
-  if (eng.state === 'waiting' && eng.canStartHand()) {
-    setTimeout(() => {
-      if (eng.state === 'waiting' && eng.canStartHand()) {
-        eng.startHand();
-        syncTable(tableId);
-      }
-    }, 3000);
+  if (eng.state === 'waiting') {
+    // Between hands: let bots yield/refill NOW so a waiting human's seat
+    // frees on every hand boundary, not on the 15s tick lottery.
+    bots.maintainTable(tableId);
+    if (eng.canStartHand()) {
+      setTimeout(() => {
+        if (eng.state === 'waiting' && eng.canStartHand()) {
+          eng.startHand();
+          syncTable(tableId);
+        }
+      }, 3000);
+    }
   }
+  broadcastState(tableId);
 }
 
 // ---- Bot backfill: tables always look full; bots play via the engine ----
@@ -199,23 +253,82 @@ io.on('connection', (socket) => {
     token = msg.token || rooms.newToken();
     const isNew = !room.engine.players.has(token);
     if (isNew) {
-      const seat = room.engine.addPlayer(token, msg.name || 'Player', msg.buyIn);
+      // wantSeat: honor the tapped chair when it's free; never restarts the hand —
+      // every joiner waits for the next deal.
+      const seat = room.engine.addPlayer(token, msg.name || 'Player', msg.buyIn, msg.seat);
       if (seat < 0) {
         socket.emit('error', { code: 'table-full', msg: 'Table is full.' });
         tableId = null; token = null;
         return;
       }
     }
+    removeSpectator(socket.id); // no longer just watching
     rooms.attach(tableId, token, socket.id);
     socket.join(tableId);
+    clearHumanTimer(token); // back in control — cancel any auto-fold
     // anti-collusion: track IP per table, flag shared IPs
     playerIp = socket.handshake.address;
     playerLabel = msg.name || token.slice(0, 8);
     const newFlags = collusion.noteJoin(tableId, playerIp, playerLabel);
     if (newFlags.length) socket.emit('notice', { code: 'collusion-flag', msg: 'Fair-play review triggered on this table.' });
-    socket.emit('joined', { token, table: tableId, accountId });
-    socket.emit('room', room.engine.getState(token));
+    const mySeat = room.engine.players.get(token).seat;
+    socket.emit('joined', { token, table: tableId, accountId, seat: mySeat, resumed: !isNew });
+    socket.emit('room', withAvatars(tableId, room.engine.getState(token)));
     bots.onHumanJoin(tableId); // a bot quietly yields its seat if the table is full
+    broadcastState(tableId);
+    syncTable(tableId);
+  });
+
+  // Watch a table's live game without taking a seat. The client shows the
+  // game already in progress; tapping a chair emits 'join'.
+  socket.on('spectate', (msg = {}) => {
+    const room = rooms.getTable(msg.table);
+    if (!room) {
+      socket.emit('error', { code: 'no-table', msg: 'Unknown table.' });
+      return;
+    }
+    tableId = msg.table;
+    token = null;
+    addSpectator(tableId, socket.id);
+    socket.join(tableId);
+    socket.emit('room', withAvatars(tableId, room.engine.getState(null)));
+  });
+
+  // Reconnect path: same token → same seat, right back into the live game
+  // (same hand too, if it's still going). Unknown/expired token → resumeFailed.
+  socket.on('resume', (msg = {}) => {
+    const room = rooms.getTable(msg.table);
+    if (!room || !msg.token || !room.engine.players.has(msg.token)) {
+      socket.emit('resumeFailed', {});
+      return;
+    }
+    tableId = msg.table;
+    token = msg.token;
+    removeSpectator(socket.id);
+    rooms.attach(tableId, token, socket.id);
+    socket.join(tableId);
+    clearHumanTimer(token); // back in control — cancel any auto-fold
+    playerLabel = room.engine.players.get(token).name;
+    const mySeat = room.engine.players.get(token).seat;
+    socket.emit('joined', { token, table: tableId, seat: mySeat, resumed: true });
+    socket.emit('room', withAvatars(tableId, room.engine.getState(token)));
+    if (room.engine.actingToken === token) armHumanTimer(tableId, token);
+    broadcastState(tableId);
+    syncTable(tableId);
+  });
+
+  // Broke player reloads to a full starting stack (gold coins, no cash value).
+  // They sit back in on the next deal — never mid-hand.
+  socket.on('rebuy', () => {
+    const r = requireSeat(); if (!r) return;
+    const p = r.engine.players.get(token);
+    if (!p) return;
+    if (p.stack > 0) {
+      socket.emit('error', { code: 'not-broke', msg: 'You still have chips.' });
+      return;
+    }
+    p.stack = r.engine.startingStack;
+    socket.emit('notice', { code: 'rebuy', msg: 'Reloaded — you are back in on the next hand.' });
     broadcastState(tableId);
     syncTable(tableId);
   });
@@ -233,6 +346,7 @@ io.on('connection', (socket) => {
       const r = requireSeat(); if (!r) return;
       const res = r.engine.act(token, action);
       if (!res.ok) socket.emit('error', { code: res.error, msg: 'Action rejected.' });
+      else clearHumanTimer(token);
       syncTable(tableId);
     });
   }
@@ -240,22 +354,35 @@ io.on('connection', (socket) => {
     const r = requireSeat(); if (!r) return;
     const res = r.engine.act(token, 'raise', msg.amount);
     if (!res.ok) socket.emit('error', { code: res.error, msg: 'Action rejected.', min: res.min });
+    else clearHumanTimer(token);
     syncTable(tableId);
   });
   socket.on('leave', () => {
     const r = tableId && rooms.getTable(tableId);
+    clearHumanTimer(token);
+    removeSpectator(socket.id);
     if (r) { r.engine.removePlayer(token); rooms.detachBySocket(socket.id); syncTable(tableId); }
     if (tableId) { socket.leave(tableId); collusion.noteLeave(tableId, playerIp, playerLabel); }
     tableId = null; token = null; accountId = null; playerIp = null; playerLabel = null;
   });
   socket.on('disconnect', () => {
     rooms.detachBySocket(socket.id);
-    if (tableId) { syncTable(tableId); collusion.noteLeave(tableId, playerIp, playerLabel); }
+    removeSpectator(socket.id);
+    if (tableId && token) {
+      const r = rooms.getTable(tableId);
+      // Gone mid-turn? Resolve the hand fast so the table never stalls.
+      if (r && r.engine.actingToken === token && !bots.isBot(tableId, token)) armHumanTimer(tableId, token);
+      syncTable(tableId);
+      collusion.noteLeave(tableId, playerIp, playerLabel);
+    }
     tableId = null; token = null; accountId = null; playerIp = null; playerLabel = null;
   });
 });
 
-setInterval(() => rooms.sweep(), 30000);
+setInterval(() => {
+  const cleared = rooms.sweep();
+  for (const id of cleared) syncTable(id);
+}, 30000);
 
 // ---- Global error handling: never leak stacks to clients in production ----
 app.use((err, req, res, _next) => {

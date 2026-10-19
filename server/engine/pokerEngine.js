@@ -37,10 +37,18 @@ class PokerEngine {
   }
 
   // ---------- player management ----------
-  addPlayer(token, name, buyIn) {
+  // wantSeat: preferred seat index. Honored when free, otherwise first free seat.
+  // New joiners ALWAYS wait for the next hand (sittingOut=true) — joining never
+  // disrupts or restarts a live hand. startHand seats everyone holding chips.
+  addPlayer(token, name, buyIn, wantSeat) {
     if (this.players.has(token)) return this.seats.indexOf(token);
     if (this.seats.every(s => s !== null)) return -1; // full
-    const seat = this.seats.findIndex(s => s === null);
+    let seat = -1;
+    if (Number.isInteger(wantSeat) && wantSeat >= 0 && wantSeat < this.maxPlayers && this.seats[wantSeat] === null) {
+      seat = wantSeat;
+    } else {
+      seat = this.seats.findIndex(s => s === null);
+    }
     const stack = Math.max(0, buyIn || this.startingStack);
     this.players.set(token, {
       token,
@@ -52,7 +60,7 @@ class PokerEngine {
       betHand: 0,      // total bet this hand
       folded: false,
       allIn: false,
-      sittingOut: stack <= 0,
+      sittingOut: true,
     });
     this.seats[seat] = token;
     this.emit('playerJoin', { token, name, seat, stack });
@@ -91,7 +99,9 @@ class PokerEngine {
 
   // ---------- hand lifecycle ----------
   canStartHand() {
-    return this.state === 'waiting' && this.activePlayers().filter(p => p.stack > 0).length >= this.minPlayers;
+    // Anyone holding chips counts — startHand seats them (clears sittingOut).
+    // Joiners wait for the next hand; they never block or restart a live one.
+    return this.state === 'waiting' && [...this.players.values()].filter(p => p.stack > 0).length >= this.minPlayers;
   }
 
   startHand() {
@@ -102,14 +112,14 @@ class PokerEngine {
     this.potTotal = 0;
     this.lastResult = null;
 
-    // reset per-hand player state
+    // reset per-hand player state; everyone holding chips is seated this hand
     for (const p of this.players.values()) {
       p.hole = [];
       p.betStreet = 0;
       p.betHand = 0;
       p.folded = false;
       p.allIn = p.stack <= 0;
-      if (p.stack <= 0) p.sittingOut = true;
+      p.sittingOut = p.stack <= 0;
     }
 
     // advance button to next player with chips
@@ -393,7 +403,7 @@ class PokerEngine {
     this.lastResult = {
       hand: this.handNumber,
       board: this.board.map(cardToString),
-      winners: [{ token: winnerToken, amount: this.potTotal, hand: byFold ? 'by fold' : p.hole.map(cardToString).join(' ') }],
+      winners: [{ token: winnerToken, name: w.name, amount: this.potTotal, hand: byFold ? 'by fold' : p.hole.map(cardToString).join(' ') }],
       showdown: [],
       wonByFold: !!byFold,
     };

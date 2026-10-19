@@ -60,19 +60,26 @@ class RoomManager {
   }
 
   // Remove players whose socket is gone past the grace period.
-  // Called on a timer; does NOT remove players mid-hand (engine folds them).
+  // Only removes BETWEEN hands — never mid-hand (their turns are auto-folded
+  // by the server turn timer instead). Returns table ids that lost a player
+  // so the server can rebroadcast. Mid-hand ghosts keep their lastSeen entry
+  // so they are retried (and removed) on a later cycle.
   sweep() {
     const now = Date.now();
+    const cleared = [];
     for (const room of this.tables.values()) {
       for (const [token, ts] of room.lastSeen) {
-        if (!room.sockets.has(token) && now - ts > GRACE_MS) {
-          if (room.engine.state === 'waiting') {
-            room.engine.removePlayer(token);
-          }
+        if (room.sockets.has(token)) continue;
+        if (now - ts <= GRACE_MS) continue;
+        if (!room.engine.players.has(token)) { room.lastSeen.delete(token); continue; }
+        if (room.engine.state === 'waiting') {
+          room.engine.removePlayer(token);
           room.lastSeen.delete(token);
+          if (!cleared.includes(room.id)) cleared.push(room.id);
         }
       }
     }
+    return cleared;
   }
 
   // Broadcast helper: call fn(room, token, socketId) for each attached socket.

@@ -330,58 +330,67 @@ class BotManager {
     }
   }
 
+  // Per-table upkeep. Returns true when seats changed (caller should rebroadcast).
+  // Safe to call from the server's sync pump: it never calls sync itself.
+  maintainTable(tableId) {
+    const room = this.rooms.getTable(tableId);
+    if (!room) return false;
+    const eng = room.engine;
+    const bots = this.tableBots(tableId);
+    let changed = false;
+
+    // Forget bot records for tokens no longer seated (swept/disconnected).
+    for (const token of [...bots.keys()]) {
+      if (!eng.players.has(token)) {
+        if (this.pending.has(token)) {
+          clearTimeout(this.pending.get(token));
+          this.pending.delete(token);
+        }
+        bots.delete(token);
+        changed = true;
+      }
+    }
+
+    if (eng.state !== 'waiting') return changed; // only reseat between hands
+
+    // Quiet departures first (a bot yields when a human took the table full).
+    const marked = this.markedLeave.get(tableId);
+    if (marked && marked.size) {
+      for (const token of marked) this.removeBot(tableId, token);
+      marked.clear();
+      changed = true;
+    }
+
+    // Broke bots rebuy like a human would.
+    for (const token of bots.keys()) {
+      const p = eng.players.get(token);
+      if (p && p.stack <= 0) {
+        p.stack = eng.startingStack;
+        p.sittingOut = false;
+        changed = true;
+      }
+    }
+
+    // Fill toward target, leaving one seat open so a human can always sit.
+    // The very first fill is instant (nobody's watching at boot); refills
+    // are capped per cycle so bots never flood in at once.
+    const target = Math.max(2, eng.maxPlayers - 1);
+    const cap = this.bootFilled.has(tableId) ? 2 : target;
+    this.bootFilled.add(tableId);
+    let added = 0;
+    while (eng.players.size < target && added < cap) {
+      if (!this.addBot(tableId)) break;
+      added++;
+      changed = true;
+    }
+    return changed;
+  }
+
   // Periodic upkeep (call every ~15s): top up empty seats with bots,
   // rebuy broke bots, and process quiet departures between hands.
-  // Joins are capped per cycle so bots never flood in at once.
   maintain() {
     for (const tableId of this.rooms.tables.keys()) {
-      const room = this.rooms.getTable(tableId);
-      if (!room) continue;
-      const eng = room.engine;
-      const bots = this.tableBots(tableId);
-
-      // Forget bot records for tokens no longer seated (swept/disconnected).
-      for (const token of [...bots.keys()]) {
-        if (!eng.players.has(token)) {
-          if (this.pending.has(token)) {
-            clearTimeout(this.pending.get(token));
-            this.pending.delete(token);
-          }
-          bots.delete(token);
-        }
-      }
-
-      if (eng.state !== 'waiting') continue; // only reseat between hands
-
-      // Quiet departures first.
-      const marked = this.markedLeave.get(tableId);
-      if (marked && marked.size) {
-        for (const token of marked) this.removeBot(tableId, token);
-        marked.clear();
-        this.sync(tableId);
-      }
-
-      // Broke bots rebuy like a human would.
-      for (const token of bots.keys()) {
-        const p = eng.players.get(token);
-        if (p && p.stack <= 0) {
-          p.stack = eng.startingStack;
-          p.sittingOut = false;
-        }
-      }
-
-      // Fill toward target, leaving one seat open so a human can always sit.
-      // The very first fill is instant (nobody's watching at boot); refills
-      // are capped per cycle so bots never flood in at once.
-      const target = Math.max(2, eng.maxPlayers - 1);
-      const cap = this.bootFilled.has(tableId) ? 2 : target;
-      this.bootFilled.add(tableId);
-      let added = 0;
-      while (eng.players.size < target && added < cap) {
-        if (!this.addBot(tableId)) break;
-        added++;
-      }
-      if (added) this.sync(tableId);
+      if (this.maintainTable(tableId)) this.sync(tableId);
     }
   }
 }
